@@ -22,7 +22,14 @@ const _LBT = libblastrampoline_jll.libblastrampoline
 macro lbtfunc(name)
     name = name isa QuoteNode ? name.value : name
     name isa Symbol || error("@lbtfunc requires a literal LAPACK symbol")
-    return QuoteNode(Symbol(string(name), "64_"))
+    # Julia's OpenBLAS/LBT interface uses ILP64 (`*_64_`) on 64-bit Julia and
+    # the plain LP64/ILP32 symbols on 32-bit. Hardcoding `64_` leaves no
+    # matching BLAS on i686 and returns garbage into BlasInt conversions.
+    @static if Sys.WORD_SIZE == 64
+        return QuoteNode(Symbol(string(name), "64_"))
+    else
+        return QuoteNode(name)
+    end
 end
 
 @inline function _check_lapack_info(info::Integer)
